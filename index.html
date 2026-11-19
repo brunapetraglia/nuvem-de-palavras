@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nuvem dos artigos</title>
+<style>
+  :root { --bg:#ffffff; --ink:#1b2430; --muted:#5a6675; --line:#d9dee5; --card:#f6f8fa;
+          --lo:#4a7bb0; --hi:#0b2a4f; --focus:#0b5cad; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg:#12161c; --ink:#e8edf3; --muted:#9aa6b4; --line:#2b333d;
+          --card:#1a2028; --lo:#7ea3cf; --hi:#eaf3ff; --focus:#8fb8ee; }
+  }
+  :root[data-theme="dark"] { --bg:#12161c; --ink:#e8edf3; --muted:#9aa6b4; --line:#2b333d;
+          --card:#1a2028; --lo:#7ea3cf; --hi:#eaf3ff; --focus:#8fb8ee; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+         font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  main { max-width:1000px; margin:0 auto; padding:24px 16px 48px; }
+  h1 { font-size:1.5rem; margin:0 0 4px; }
+  .sub { color:var(--muted); margin:0 0 16px; }
+  .controles { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:12px; }
+  .controles button { font:inherit; padding:6px 12px; border:1px solid var(--line); border-radius:999px;
+          background:var(--card); color:var(--ink); cursor:pointer; }
+  .controles button[aria-pressed="true"] { background:var(--ink); color:var(--bg); border-color:var(--ink); }
+  button:focus-visible, input:focus-visible, summary:focus-visible { outline:2px solid var(--focus); outline-offset:2px; }
+  label.opc { margin-left:auto; display:flex; gap:6px; align-items:center; color:var(--muted); font-size:.95rem; }
+  .painel { border:1px solid var(--line); border-radius:12px; background:var(--card); padding:8px; position:relative; }
+  svg { width:100%; height:auto; display:block; }
+  svg text { font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; font-weight:600; cursor:default; }
+  svg text:hover { text-decoration:underline; }
+  .dica { position:fixed; pointer-events:none; background:var(--ink); color:var(--bg); padding:4px 8px;
+          border-radius:6px; font-size:.85rem; opacity:0; transition:opacity .08s; z-index:5; white-space:nowrap; }
+  .legenda { display:flex; align-items:center; gap:10px; color:var(--muted); font-size:.9rem; margin:10px 2px; }
+  .rampa { width:120px; height:8px; border-radius:4px; background:linear-gradient(90deg,var(--lo),var(--hi)); }
+  details { margin-top:12px; }
+  summary { cursor:pointer; color:var(--muted); }
+  table { border-collapse:collapse; margin-top:8px; width:100%; max-width:420px; }
+  th, td { text-align:left; padding:4px 8px; border-bottom:1px solid var(--line); font-variant-numeric:tabular-nums; }
+  td:last-child, th:last-child { text-align:right; }
+  .nota { color:var(--muted); font-size:.85rem; margin-top:16px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Nuvem de palavras</h1>
+  <p class="sub" id="sub"></p>
+  <div class="controles" role="group" aria-label="Escolher artigo" id="botoes"></div>
+  <div class="controles">
+    <label class="opc"><input type="checkbox" id="semAutores"> ocultar nomes de autores citados</label>
+  </div>
+  <div class="painel">
+    <svg id="nuvem" viewBox="0 0 960 520" role="img" aria-labelledby="nuvem-titulo">
+      <title id="nuvem-titulo">Nuvem de palavras</title>
+    </svg>
+  </div>
+  <div class="legenda"><span>menos frequente</span><span class="rampa"></span><span>mais frequente</span>
+    <span>· tamanho e cor seguem o número de ocorrências</span></div>
+  <details>
+    <summary>Ver como tabela</summary>
+    <table id="tabela"><thead><tr><th>Palavra</th><th>Ocorrências</th></tr></thead><tbody></tbody></table>
+  </details>
+  <p class="nota" id="nota"></p>
+</main>
+<div class="dica" id="dica" role="tooltip"></div>
+<script>
+const DADOS = {"ordem": ["todos", "TempoSocial_Miguel_2026_polarizacao-politica", "TempoSocial_Massella_2026_punicao-durkheim", "Folha_PinheiroMachado_2026_brasil-vai-as-urnas-dividido", "Folha_MedeirosDaSilva_2026_futuro-dos-intelectuais"], "rotulos": {"TempoSocial_Miguel_2026_polarizacao-politica": "Miguel", "TempoSocial_Massella_2026_punicao-durkheim": "Massella", "Folha_PinheiroMachado_2026_brasil-vai-as-urnas-dividido": "Pinheiro Machado", "Folha_MedeirosDaSilva_2026_futuro-dos-intelectuais": "Medeiros da Silva", "todos": "Todos os artigos"}, "totais": {"TempoSocial_Miguel_2026_polarizacao-politica": 4091, "TempoSocial_Massella_2026_punicao-durkheim": 4810, "Folha_PinheiroMachado_2026_brasil-vai-as-urnas-dividido": 1608, "Folha_MedeirosDaSilva_2026_futuro-dos-intelectuais": 483, "todos": 10992}, "palavras": {"TempoSocial_Miguel_2026_polarizacao-politica": [["polarização", 67], ["política", 55], ["público", 20], ["mundo", 19], ["valores", 19], ["políticas", 16], ["grupos", 16], ["debate", 15], ["partido", 15], ["esquerda", 15], ["pessoas", 15], ["disputa", 14], ["democracia", 14], ["literatura", 13], ["plataformas", 13], ["estudos", 12], ["posições", 12], ["direita", 12], ["conflito", 12], ["fato", 12], ["ideia", 11], ["ciência", 11], ["grupo", 11], ["extrema-direita", 11], ["político", 11], ["políticos", 10], ["comportamento", 10], ["sociais", 10], ["discurso", 9], ["eleições", 9], ["presidenciais", 9], ["possível", 9], ["muitas", 8], ["pesquisa", 8], ["espaço", 8], ["duas", 8], ["adversários", 8], ["embora", 8], ["quanto", 8], ["online", 8], ["usuários", 8], ["nunes", 8], ["traumann", 8], ["expressão", 7], ["primeira", 7], ["partidos", 7], ["questões", 7], ["posição", 7], ["afetiva", 7], ["eleição", 7], ["psdb", 7], ["caráter", 7], ["verdade", 6], ["trump", 6], ["estados", 6], ["unidos", 6], ["elites", 6], ["quase", 6], ["concentração", 6], ["extremos", 6], ["central", 6], ["eles", 6], ["sempre", 6], ["legendas", 6], ["consenso", 6], ["bolsonaro", 6], ["ocorre", 6], ["jogo", 6], ["sociodigitais", 6], ["atitudes", 6], ["conteúdo", 6], ["ordem", 6], ["redes", 6], ["maneira", 6], ["referência", 6], ["diante", 5], ["fenômeno", 5], ["vitória", 5], ["presidente", 5], ["vista", 5], ["processo", 5], ["consensos", 5], ["divergentes", 5], ["partidária", 5], ["lado", 5], ["ruptura", 5], ["sistema", 5], ["candidatos", 5], ["primeiro", 5], ["disputas", 5], ["ampla", 5], ["brasileiro", 5], ["liberal", 5], ["bolsonarismo", 5], ["programa", 5], ["bolhas", 5], ["acesso", 5], ["percepção", 5], ["visões", 5], ["dentro", 5]], "TempoSocial_Massella_2026_punicao-durkheim": [["responsabilidade", 169], ["fauconnet", 113], ["durkheim", 83], ["crime", 62], ["moral", 56], ["pena", 49], ["sociedade", 42], ["indivíduo", 38], ["coletiva", 37], ["juízo", 34], ["individualismo", 31], ["representação", 28], ["noção", 25], ["punição", 24], ["individual", 23], ["penal", 22], ["morais", 21], ["relação", 19], ["ato", 18], ["ideia", 17], ["criminoso", 17], ["representações", 17], ["interpretação", 16], ["instituição", 15], ["trabalho", 15], ["sociais", 15], ["grupo", 15], ["respeito", 15], ["consciência", 14], ["sanção", 14], ["regra", 13], ["sentimentos", 13], ["estudo", 13], ["condições", 13], ["ação", 13], ["smith", 12], ["possível", 12], ["tendências", 12], ["problema", 12], ["força", 12], ["regras", 11], ["crenças", 11], ["visão", 11], ["caráter", 11], ["direito", 11], ["concepção", 11], ["reflexão", 10], ["formulação", 10], ["significados", 10], ["práticas", 10], ["natureza", 10], ["justiça", 10], ["responsável", 10], ["indivíduos", 10], ["tese", 10], ["vista", 10], ["questão", 10], ["geral", 10], ["fundamental", 10], ["valores", 10], ["individualização", 10], ["durkheimiana", 9], ["duas", 9], ["emocional", 9], ["culpado", 9], ["linguagem", 9], ["processos", 9], ["elaboração", 9], ["atos", 9], ["relações", 9], ["teoria", 9], ["coletivas", 9], ["instituições", 9], ["papel", 9], ["análise", 9], ["possibilidade", 9], ["emoções", 9], ["espiritualização", 9], ["sociológica", 8], ["violação", 8], ["sociedades", 8], ["razão", 8], ["próprio", 8], ["sistema", 8], ["sujeito", 8], ["solidariedade", 8], ["permite", 8], ["importância", 8], ["maneira", 8], ["juízos", 8], ["paixão", 8], ["expressão", 8], ["transferência", 8], ["forças", 8], ["comunicável", 8], ["aponta", 8], ["pessoa", 8], ["garland", 7], ["bem", 7], ["mal", 7]], "Folha_PinheiroMachado_2026_brasil-vai-as-urnas-dividido": [["aspirações", 19], ["pessoas", 18], ["trabalho", 15], ["estado", 11], ["individual", 11], ["redes", 10], ["sociais", 10], ["políticas", 10], ["desejo", 9], ["extrema", 9], ["direita", 9], ["digital", 8], ["autonomia", 7], ["milhões", 7], ["universo", 7], ["sonhos", 6], ["capacidade", 6], ["bolsonarismo", 6], ["brasileiros", 6], ["consumo", 6], ["renda", 6], ["pobreza", 6], ["riqueza", 6], ["influenciadores", 6], ["autoritariado", 6], ["sonhar", 5], ["empreendedorismo", 5], ["liberdade", 5], ["classes", 5], ["aspiracionais", 5], ["esforço", 5], ["empregos", 5], ["trabalhadores", 5], ["sonho", 5], ["vida", 5], ["voto", 4], ["eleições", 4], ["econômica", 4], ["cujas", 4], ["horizontes", 4], ["grandes", 4], ["prosperidade", 4], ["saída", 4], ["comprar", 4], ["família", 4], ["formais", 4], ["jovens", 4], ["nada", 4], ["tornar", 4], ["mundo", 4], ["muitas", 4], ["força", 4], ["raiva", 4], ["segmentos", 3], ["populares", 3], ["últimos", 3], ["surfa", 3], ["presença", 3], ["economia", 3], ["comparação", 3], ["fenômeno", 3], ["lula", 3], ["processo", 3], ["aspirar", 3], ["país", 3], ["vão", 3], ["querem", 3], ["ampliação", 3], ["população", 3], ["mobilidade", 3], ["significa", 3], ["realização", 3], ["expansão", 3], ["plataformizado", 3], ["aplicativos", 3], ["crise", 3], ["alto", 3], ["ônibus", 3], ["direito", 3], ["brilhar", 3], ["justamente", 3], ["janela", 3], ["melhor", 3], ["embora", 3], ["grupos", 3], ["horas", 3], ["conforto", 3], ["atrair", 3], ["deus", 3], ["falar", 3], ["mal", 3], ["instagram", 3], ["ceo", 3], ["ausente", 3], ["vai", 2], ["urnas", 2], ["dividido", 2], ["deixado", 2], ["trás", 2], ["realidade", 2]], "Folha_MedeirosDaSilva_2026_futuro-dos-intelectuais": [["intelectuais", 15], ["sociais", 7], ["livro", 5], ["intelectual", 5], ["público", 4], ["figuras", 4], ["ideias", 4], ["pública", 4], ["século", 3], ["grupo", 3], ["obras", 3], ["vida", 3], ["sociedades", 3], ["quase", 3], ["análise", 3], ["papéis", 3], ["assumem", 3], ["sentidos", 3], ["contexto", 3], ["respeito", 3], ["debate", 2], ["tempos", 2], ["obra", 2], ["transformações", 2], ["passou", 2], ["história", 2], ["políticos", 2], ["poder", 2], ["redes", 2], ["likes", 2], ["habermas", 2], ["morreu", 2], ["último", 2], ["temas", 2], ["ideia", 2], ["significa", 2], ["questões", 2], ["plural", 2], ["papel", 2], ["atividades", 2], ["debates", 2], ["tão", 2], ["maneiras", 2], ["contextos", 2], ["historicamente", 2], ["mundo", 2], ["profissionais", 2], ["exercem", 2], ["sociedade", 2], ["assumir", 2], ["classe", 2], ["quadro", 2], ["ciências", 2], ["pensar", 2], ["ocidental", 2], ["experiências", 2], ["mulheres", 2], ["pessoas", 2], ["eficácia", 2], ["político", 2]], "todos": [["responsabilidade", 169], ["fauconnet", 113], ["durkheim", 83], ["polarização", 67], ["crime", 62], ["política", 60], ["moral", 58], ["sociedade", 50], ["pena", 49], ["sociais", 42], ["pessoas", 40], ["coletiva", 39], ["indivíduo", 39], ["individual", 35], ["juízo", 34], ["trabalho", 33], ["individualismo", 32], ["ideia", 30], ["grupo", 30], ["políticas", 29], ["valores", 29], ["mundo", 28], ["público", 28], ["representação", 28], ["noção", 27], ["grupos", 25], ["punição", 24], ["relação", 23], ["respeito", 23], ["morais", 23], ["debate", 22], ["penal", 22], ["direita", 21], ["possível", 21], ["aspirações", 20], ["força", 19], ["caráter", 18], ["estudo", 18], ["redes", 18], ["ato", 18], ["problema", 17], ["vista", 17], ["partido", 17], ["direito", 17], ["duas", 17], ["sentimentos", 17], ["ação", 17], ["questão", 17], ["vida", 17], ["criminoso", 17], ["representações", 17], ["expressão", 16], ["questões", 16], ["conflito", 16], ["análise", 16], ["democracia", 16], ["estado", 16], ["consciência", 16], ["interpretação", 16], ["processo", 15], ["literatura", 15], ["esquerda", 15], ["fato", 15], ["embora", 15], ["regra", 15], ["jogo", 15], ["instituição", 15], ["intelectuais", 15], ["estudos", 14], ["geral", 14], ["disputa", 14], ["relações", 14], ["esforço", 14], ["quanto", 14], ["político", 14], ["plataformas", 14], ["maneira", 14], ["crenças", 14], ["visão", 14], ["sanção", 14], ["condições", 14], ["eleições", 13], ["posições", 13], ["políticos", 13], ["sistema", 13], ["regras", 13], ["bem", 12], ["muitas", 12], ["primeira", 12], ["quase", 12], ["sempre", 12], ["possibilidade", 12], ["conteúdo", 12], ["parece", 12], ["ordem", 12], ["instituições", 12], ["smith", 12], ["tendências", 12], ["papel", 12], ["fenômeno", 11]]}, "top": 60, "autores": ["fauconnet", "durkheim", "watts", "miller", "mauss", "smith", "nunes", "traumann", "trump", "dilma", "rousseff", "donald", "lula", "bolsonaro", "singer", "fraser", "mason", "iyengar", "habermas", "garland", "cotterrell", "combessie", "massella", "miguel"]};
+const W = 960, H = 520, PAD = 6;
+const svg = document.getElementById('nuvem');
+const dica = document.getElementById('dica');
+const medidor = document.createElement('canvas').getContext('2d');
+let atual = DADOS.ordem[0];
+
+function larguraTexto(t, px) {
+  medidor.font = '600 ' + px + 'px system-ui, "Segoe UI", sans-serif';
+  return medidor.measureText(t).width;
+}
+function bate(a, b) {
+  return !(a.x + a.w + 4 < b.x || b.x + b.w + 4 < a.x || a.y + a.h + 4 < b.y || b.y + b.h + 4 < a.y);
+}
+function posicionar(palavras) {
+  const nmax = Math.max(...palavras.map(p => p[1])), nmin = Math.min(...palavras.map(p => p[1]));
+  const caixas = [], saida = [];
+  for (const [txt, n] of palavras) {
+    const t = nmax === nmin ? 1 : (n - nmin) / (nmax - nmin);
+    let px = 13 + 56 * Math.sqrt(t);
+    let colocada = null;
+    for (let tent = 0; tent < 7 && !colocada; tent++, px *= 0.9) {
+      const w = larguraTexto(txt, px), h = px * 0.95;
+      for (let a = 0; a < 90; a += 0.12) {
+        const r = 4.2 * a;
+        const x = W / 2 + r * Math.cos(a) * 1.7 - w / 2;
+        const y = H / 2 + r * Math.sin(a) - h / 2;
+        if (x < PAD || y < PAD || x + w > W - PAD || y + h > H - PAD) continue;
+        const c = { x, y, w, h };
+        if (!caixas.some(b => bate(c, b))) { colocada = { c, px }; break; }
+      }
+    }
+    if (colocada) {
+      caixas.push(colocada.c);
+      saida.push({ txt, n, t, px: colocada.px, x: colocada.c.x, y: colocada.c.y + colocada.c.h * 0.82 });
+    }
+  }
+  return saida;
+}
+function desenhar() {
+  const ocultar = document.getElementById('semAutores').checked;
+  const aut = new Set(DADOS.autores);
+  let lista = DADOS.palavras[atual].filter(p => !(ocultar && aut.has(p[0]))).slice(0, DADOS.top);
+  const itens = posicionar(lista);
+  svg.querySelectorAll('text').forEach(e => e.remove());
+  for (const it of itens) {
+    const el = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    el.textContent = it.txt;
+    el.setAttribute('x', it.x.toFixed(1)); el.setAttribute('y', it.y.toFixed(1));
+    el.setAttribute('font-size', it.px.toFixed(1));
+    el.style.fill = 'color-mix(in srgb, var(--hi) ' + Math.round(it.t * 100) + '%, var(--lo))';
+    el.addEventListener('mousemove', ev => {
+      dica.textContent = it.txt + ' · ' + it.n + (it.n === 1 ? ' ocorrência' : ' ocorrências');
+      dica.style.left = (ev.clientX + 12) + 'px'; dica.style.top = (ev.clientY + 14) + 'px'; dica.style.opacity = 1;
+    });
+    el.addEventListener('mouseleave', () => { dica.style.opacity = 0; });
+    svg.appendChild(el);
+  }
+  const rot = DADOS.rotulos[atual];
+  document.getElementById('nuvem-titulo').textContent = 'Nuvem de palavras: ' + rot;
+  document.getElementById('sub').textContent = rot + ' · ' + DADOS.totais[atual].toLocaleString('pt-BR') +
+    ' palavras de conteúdo · ' + itens.length + ' palavras na nuvem';
+  const tb = document.querySelector('#tabela tbody'); tb.innerHTML = '';
+  for (const it of itens.slice().sort((a, b) => b.n - a.n).slice(0, 20)) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + it.txt + '</td><td>' + it.n + '</td>'; tb.appendChild(tr);
+  }
+  document.getElementById('nota').textContent =
+    'Contagem por forma de superfície (sem lematização): "moral" e "morais" aparecem separadas. ' +
+    'Referências bibliográficas, palavras vazias e cabeçalhos de página ficam de fora.';
+  document.querySelectorAll('#botoes button').forEach(b => b.setAttribute('aria-pressed', b.dataset.id === atual));
+}
+const botoes = document.getElementById('botoes');
+for (const id of DADOS.ordem) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.dataset.id = id; b.textContent = DADOS.rotulos[id];
+  b.addEventListener('click', () => { atual = id; desenhar(); });
+  botoes.appendChild(b);
+}
+document.getElementById('semAutores').addEventListener('change', desenhar);
+desenhar();
+</script>
+</body>
+</html>
